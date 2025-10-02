@@ -1,2 +1,2 @@
 [tool.uv.workspace]
-members = ["ariadne"]
+members = ["ariadne", "ariadne-pm4py-plugins"]

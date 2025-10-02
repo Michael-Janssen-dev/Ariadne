@@ -1,0 +1,23 @@
+[project]
+name = "ariadne-pm4py-plugins"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { email = "github@michaeljanssen.nl" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "ariadne",
+    "pm4py>=2.7.17",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.sources]
+ariadne = { workspace = true }
+
+[project.entry-points."ariadne.mining_algorithms"]
+pm4py-mining-plugin = "ariadne_pm4py_plugins.mining:PM4PyMiningAlgorithm"
