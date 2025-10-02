@@ -1,0 +1,17 @@
+[project]
+name = "ariadne"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { email = "github@michaeljanssen.nl" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+ariadne = "ariadne:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
