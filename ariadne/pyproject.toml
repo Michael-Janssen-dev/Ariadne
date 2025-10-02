@@ -7,10 +7,12 @@ authors = [
     { email = "github@michaeljanssen.nl" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "click>=8.3.0",
+]
 
 [project.scripts]
-ariadne = "ariadne:main"
+ariadne = "ariadne.cli:cli"
 
 [build-system]
 requires = ["hatchling"]
