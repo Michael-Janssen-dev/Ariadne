@@ -290,6 +290,7 @@
     let currentService = null;
     let allServiceButtons = [];
     let allEndpointButtons = [];
+    let navigationHistory = [];
 
     function showEmpty(message) {
         const graphContainer = document.getElementById('graph');
@@ -325,6 +326,23 @@
                 currentScale *= delta;
                 svg.style.transform = `scale(${currentScale})`;
             });
+
+            // Add click handlers to graph nodes
+            const nodes = svg.querySelectorAll('.node');
+            nodes.forEach(node => {
+                node.style.cursor = 'pointer';
+                node.addEventListener('click', () => {
+                    const textElement = node.querySelector('text');
+                    if (textElement) {
+                        const label = textElement.textContent.trim();
+                        const parts = label.split('$');
+                        if (parts.length === 2) {
+                            const [serviceName, endpointName] = parts;
+                            switchToEndpoint(serviceName, endpointName);
+                        }
+                    }
+                });
+            });
         } catch (error) {
             showError(`Error rendering graph: ${error.message}`);
         }
@@ -346,6 +364,46 @@
             currentSvg.style.transform = `scale(${currentScale})`;
         }
     };
+
+    function switchToEndpoint(serviceName, endpointName, addToHistory = true) {
+        // Check if the service exists in the data
+        if (!DATA[serviceName]) {
+            console.warn(`Service "${serviceName}" not found`);
+            return;
+        }
+
+        // Check if the endpoint exists in the service
+        if (!DATA[serviceName][endpointName]) {
+            console.warn(`Endpoint "${endpointName}" not found in service "${serviceName}"`);
+            return;
+        }
+
+        // Add current location to history before navigating (if we have a current endpoint)
+        if (addToHistory && currentService && activeEndpointButton) {
+            const currentEndpoint = activeEndpointButton.textContent;
+            // Don't add duplicate of the last item
+            const lastItem = navigationHistory[navigationHistory.length - 1];
+            if (!lastItem || lastItem.service !== currentService || lastItem.endpoint !== currentEndpoint) {
+                navigationHistory.push({ service: currentService, endpoint: currentEndpoint });
+            }
+        }
+
+        // Switch to the service if not already selected
+        if (currentService !== serviceName) {
+            const serviceButtons = allServiceButtons.filter(btn => btn.textContent === serviceName);
+            if (serviceButtons.length > 0) {
+                serviceButtons[0].click();
+            }
+        }
+
+        // Wait a bit for the endpoint list to render, then select the endpoint
+        setTimeout(() => {
+            const endpointButtons = allEndpointButtons.filter(btn => btn.textContent === endpointName);
+            if (endpointButtons.length > 0) {
+                endpointButtons[0].click();
+            }
+        }, 50);
+    }
 
     function filterItems(searchTerm, buttons) {
         const term = searchTerm.toLowerCase();
@@ -434,6 +492,7 @@
     window.backToServices = function() {
         document.getElementById('endpoint-list').innerHTML = '';
         currentService = null;
+        navigationHistory = [];
         showEmpty('Select a service from the sidebar to begin');
         updateBreadcrumb();
         setupSearch(allServiceButtons, false);
@@ -441,11 +500,38 @@
 
     function updateBreadcrumb(serviceName = null, endpointName = null) {
         const breadcrumb = document.getElementById('breadcrumb');
-        if (serviceName && endpointName) {
-            breadcrumb.textContent = `${serviceName} > ${endpointName}`;
-        } else {
-            breadcrumb.textContent = '';
+        breadcrumb.innerHTML = '';
+
+        if (!serviceName || !endpointName) {
+            return;
         }
+
+        // Add navigation history items as clickable links
+        navigationHistory.forEach((item, index) => {
+            const link = document.createElement('span');
+            link.textContent = `${item.service} > ${item.endpoint}`;
+            link.style.cursor = 'pointer';
+            link.style.color = '#3498db';
+            link.style.textDecoration = 'underline';
+            link.onclick = () => {
+                // Remove items after this one in history
+                navigationHistory = navigationHistory.slice(0, index + 1);
+                switchToEndpoint(item.service, item.endpoint, false);
+            };
+            breadcrumb.appendChild(link);
+
+            const separator = document.createElement('span');
+            separator.textContent = ' > ';
+            separator.style.margin = '0 8px';
+            separator.style.color = '#999';
+            breadcrumb.appendChild(separator);
+        });
+
+        // Add current location (not clickable)
+        const current = document.createElement('span');
+        current.textContent = `${serviceName} > ${endpointName}`;
+        current.style.fontWeight = '500';
+        breadcrumb.appendChild(current);
     }
 
     function renderServiceList() {
