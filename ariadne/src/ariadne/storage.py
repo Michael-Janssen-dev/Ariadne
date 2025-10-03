@@ -4,7 +4,7 @@ File-based storage for process models.
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 from ariadne.domain.models.process_model import EndpointModel
 

@@ -1,6 +1,5 @@
 from ariadne.domain.models.process_model import EndpointModel
 from ariadne.domain.models.traces import TraceLogFactory
-from ariadne.domain.plugins import ConformanceChecker
 from ariadne.storage import ModelStorage
 import pandas as pd
 

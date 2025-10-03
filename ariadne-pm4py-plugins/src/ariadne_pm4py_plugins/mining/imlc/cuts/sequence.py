@@ -99,7 +99,7 @@ class NonAtomicSequenceCutUVCL(SequenceCutUVCL):
                 split_point = new_split_point
                 act_union = act_union.union(set(groups[i]))
                 i = i + 1
-        return list(map(lambda l: IMLCDataStructureUVCL(l), logs))
+        return list(map(lambda log: IMLCDataStructureUVCL(log), logs))
 
     @classmethod
     def _find_split_point(

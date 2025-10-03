@@ -150,7 +150,7 @@ class NonAtomicLoopCutUVCL(LoopCut[IMLCDataStructureUVCL]):
             )  # keep empty do slices, consistent with original
 
         logs = [do_log] + redo_logs
-        return [IMLCDataStructureUVCL(l) for l in logs]
+        return [IMLCDataStructureUVCL(log) for log in logs]
 
     @classmethod
     def _append_trace_to_redo_log(

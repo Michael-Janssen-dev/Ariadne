@@ -66,7 +66,7 @@ func (sb *SpanBuffer) AddSpans(req *collectorv1.ExportTraceServiceRequest) (acce
 				for _, attr := range span.Attributes {
 					spanSize += int64(len(attr.Key) + 50) // rough estimate for value
 				}
-				
+
 				if sb.maxSizeBytes > 0 && sb.currentSize+spanSize > sb.maxSizeBytes {
 					sb.limitReached = true
 					return accepted, true
@@ -124,7 +124,7 @@ func (sb *SpanBuffer) ExportToCSV(filename string) error {
 
 	// Write spans
 	serviceName := sb.resourceAttrs["service.name"]
-	for _, span := range sb.spans {		
+	for _, span := range sb.spans {
 		// Format attributes as key=value pairs
 		attrs := ""
 		for i, attr := range span.Attributes {
@@ -153,11 +153,11 @@ func (sb *SpanBuffer) ExportToCSV(filename string) error {
 		}
 	}
 
-	log.Printf("Exported %d spans to %s (%.2f MB)", 
-		len(sb.spans), 
-		filename, 
+	log.Printf("Exported %d spans to %s (%.2f MB)",
+		len(sb.spans),
+		filename,
 		float64(sb.currentSize)/(1024*1024))
-	
+
 	return nil
 }
 
@@ -173,7 +173,7 @@ func attributeValueToString(v *commonv1.AnyValue) string {
 	if v == nil {
 		return ""
 	}
-	
+
 	switch {
 	case v.GetStringValue() != "":
 		return v.GetStringValue()
@@ -203,10 +203,10 @@ type TraceServiceServer struct {
 // Export handles incoming trace data
 func (s *TraceServiceServer) Export(ctx context.Context, req *collectorv1.ExportTraceServiceRequest) (*collectorv1.ExportTraceServiceResponse, error) {
 	accepted, limitReached := s.buffer.AddSpans(req)
-	
+
 	count, sizeMB := s.buffer.GetStats()
 	log.Printf("Received %d spans (total: %d spans, %.2f MB)", accepted, count, sizeMB)
-	
+
 	if limitReached {
 		log.Printf("Buffer limit reached!")
 	}
@@ -239,17 +239,17 @@ func main() {
 
 	// Create buffer
 	buffer := NewSpanBuffer(*maxSpans, *maxSizeMB)
-	
+
 	// Setup gRPC server
 	grpcServer := grpc.NewServer()
 	server := &TraceServiceServer{buffer: buffer}
 	collectorv1.RegisterTraceServiceServer(grpcServer, server)
-	
+
 	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
-	
+
 	// Start server in background
 	go func() {
 		log.Printf("Starting OTLP receiver on port %d", *port)
@@ -264,16 +264,16 @@ func main() {
 		}
 		log.Printf("  Output: %s", outputFile)
 		log.Println("Press Ctrl+C to stop collection and export")
-		
+
 		if err := grpcServer.Serve(listener); err != nil {
 			log.Printf("gRPC server error: %v", err)
 		}
 	}()
-	
+
 	// Setup signal handler
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-	
+
 	// Setup duration timer if specified
 	var durationTimer *time.Timer
 	var durationChan <-chan time.Time
@@ -281,28 +281,28 @@ func main() {
 		durationTimer = time.NewTimer(*duration)
 		durationChan = durationTimer.C
 	}
-	
+
 	// Setup status ticker
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
-	
+
 	// Main loop
 	for {
 		select {
 		case <-sigChan:
 			log.Println("\nReceived interrupt signal, exporting...")
 			goto export
-			
+
 		case <-durationChan:
 			log.Println("\nDuration reached, exporting...")
 			goto export
-			
+
 		case <-ticker.C:
 			if *verbose {
 				count, sizeMB := buffer.GetStats()
 				log.Printf("Status: %d spans, %.2f MB", count, sizeMB)
 			}
-			
+
 			// Check if buffer limit reached
 			if buffer.IsLimitReached() {
 				log.Println("\nBuffer limit reached, exporting...")
@@ -310,23 +310,23 @@ func main() {
 			}
 		}
 	}
-	
+
 export:
 	// Stop accepting new connections
 	grpcServer.GracefulStop()
-	
+
 	// Export to CSV
 	count, sizeMB := buffer.GetStats()
 	log.Printf("Final stats: %d spans collected, %.2f MB", count, sizeMB)
-	
+
 	if count == 0 {
 		log.Println("No spans collected, skipping export")
 		return
 	}
-	
+
 	if err := buffer.ExportToCSV(outputFile); err != nil {
 		log.Fatalf("Failed to export: %v", err)
 	}
-	
+
 	log.Println("Export complete!")
 }

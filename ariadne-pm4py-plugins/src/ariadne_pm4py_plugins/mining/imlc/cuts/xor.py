@@ -76,4 +76,4 @@ class NonAtomicExclusiveChoiceCutUVCL(ExclusiveChoiceCut[IMLCDataStructureUVCL])
                 if base(e) in groups[count[0][0]]:
                     new_trace = new_trace + (e,)
             logs[count[0][0]].update({new_trace: obj.data_structure[t]})
-        return list(map(lambda l: IMLCDataStructureUVCL(l), logs))
+        return list(map(lambda log: IMLCDataStructureUVCL(log), logs))
