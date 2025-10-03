@@ -98,7 +98,7 @@ class ModelStorage:
         with open(meta_path, "w") as f:
             json.dump(meta, f, indent=2)
 
-    def load_model(self, service_name: str, endpoint_name: str) -> Optional[Any]:
+    def load_model(self, service_name: str, endpoint_name: str) -> Optional[str]:
         """
         Load a process model from disk.
 

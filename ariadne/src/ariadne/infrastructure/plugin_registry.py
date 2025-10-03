@@ -1,6 +1,6 @@
 from importlib.metadata import entry_points
 from typing import Generic, Iterable, TypeVar
-from ariadne.domain.plugins import Plugin, MiningAlgorithm
+from ariadne.domain.plugins import ConformanceChecker, Plugin, MiningAlgorithm
 
 import logging
 
@@ -56,3 +56,4 @@ class Registry(Generic[P]):
 
 
 mining_registry = Registry(MiningAlgorithm, "ariadne.mining_algorithms")
+conformance_registry = Registry(ConformanceChecker, "ariadne.conformance_checkers")

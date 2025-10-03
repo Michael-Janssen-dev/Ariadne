@@ -21,3 +21,6 @@ ariadne = { workspace = true }
 
 [project.entry-points."ariadne.mining_algorithms"]
 pm4py-mining-plugin = "ariadne_pm4py_plugins.mining:PM4PyMiningAlgorithm"
+
+[project.entry-points."ariadne.conformance_checkers"]
+pm4py-conformance-plugin = "ariadne_pm4py_plugins.conformance:PM4PYConformanceChecker"

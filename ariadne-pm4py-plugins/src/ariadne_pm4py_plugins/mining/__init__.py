@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import xml.etree.ElementTree as ET
 from ariadne.domain.models.process_model import EndpointModel
 from ariadne.domain.models.traces import EndpointChildSpans
@@ -7,80 +6,16 @@ from ariadne_pm4py_plugins.mining.imlc.algorithm import (
     discover_petri_net_inductive_lifecycle,
 )
 import pm4py
-from pydantic import BaseModel, Field
-import pandas as pd
 from .layered.algorithm import (
     MinerVariants,
     _get_uvcl,
     merge_lifecycles,
 )
 from pm4py.algo.discovery.inductive.algorithm import Variants as InductiveVariants
-from pm4py.objects.petri_net.obj import PetriNet
 from pm4py.convert import convert_to_petri_net
 from pm4py.objects.petri_net.exporter.variants.pnml import export_petri_tree
 from pm4py.visualization.petri_net import visualizer as pn_visualizer
 from pm4py.algo.discovery.inductive import algorithm as inductive
-
-import warnings
-from pandas.errors import SettingWithCopyWarning
-
-warnings.filterwarnings("ignore", category=SettingWithCopyWarning)
-
-
-@dataclass
-class MinedArchitecture:
-    mapping: dict[str, str]
-    endpoints: dict[str, PetriNet]
-
-
-class InductiveMinerConfig(BaseModel):
-    """Configuration schema for Inductive Miner."""
-
-    variant: str = Field(
-        default="imlc", description="Mining variant to use for process discovery"
-    )
-
-
-class InductiveMinerInput(BaseModel):
-    """Input schema for Inductive Miner."""
-
-    log: pd.DataFrame = Field(description="Event log data for process mining")
-
-    class Config:
-        arbitrary_types_allowed = True
-
-
-class InductiveMinerOutput(BaseModel):
-    """Output schema for Inductive Miner."""
-
-    architecture: MinedArchitecture = Field(description="Mined process architecture")
-
-    class Config:
-        arbitrary_types_allowed = True
-
-
-def _prepare_log(log):
-    m = dict()
-    reverse = dict()
-    service_nr = 0
-    for service_name, group in log.groupby("service_name"):
-        activity_nr = 0
-        m[service_name] = dict()
-        m[service_nr] = service_name
-        for activity_name, service_group in group.groupby("operation_name"):
-            m[service_name][activity_name] = activity_nr
-            reverse[str(service_nr) + "_" + str(activity_nr)] = (
-                service_name + "$" + activity_name
-            )
-            reverse[service_name + "$" + activity_name] = (
-                str(service_nr) + "_" + str(activity_nr)
-            )
-            log.loc[service_group.index, "activity_name"] = (
-                str(service_nr) + "_" + str(activity_nr)
-            )
-            activity_nr += 1
-        service_nr += 1
-    return log, reverse
 
 
 class PM4PyMiningAlgorithm(MiningAlgorithm):
@@ -93,9 +28,6 @@ class PM4PyMiningAlgorithm(MiningAlgorithm):
         """
         Mine a process model from the given traces using PM4Py.
         """
-        traces.data["activity_name"] = (
-            traces.data["service_name"] + "$" + traces.data["name"]
-        )
         variant = self.config.get("variant", "IMlc")
         try:
             miner_variant = MinerVariants[variant]
@@ -132,6 +64,6 @@ class PM4PyMiningAlgorithm(MiningAlgorithm):
             raise ValueError(f"Unknown miner variant: {miner_variant}")
         petri_net, im, fm = convert_to_petri_net(tree)
         pnml_tree: ET.ElementTree = export_petri_tree(petri_net, im, fm)
-        pnml = str(ET.tostring(pnml_tree.getroot(), encoding="utf-8"))  # type: ignore
+        pnml = ET.tostring(pnml_tree.getroot(), encoding="utf-8").decode("utf-8")  # type: ignore
         dot = pn_visualizer.apply(petri_net, im, fm).source
         return EndpointModel(pnml_content=pnml, dot_content=dot)

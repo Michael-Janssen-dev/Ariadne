@@ -24,6 +24,8 @@ SERVICE_NAME_COL = "service_name"
 START_TIME_COL = "start_time"
 END_TIME_COL = "end_time"
 
+ACTIVITY_NAME_COL = "activity_name"
+
 
 @dataclass
 class TraceLog:
@@ -98,10 +100,16 @@ class TraceLog:
         return PreprocessedTraceLog(data=self.data)
 
 
+@dataclass
 class PreprocessedTraceLog(TraceLog):
     """
     Represents a preprocessed trace log, ready for analysis.
     """
+
+    def __post_init__(self):
+        self.data.loc[:, ACTIVITY_NAME_COL] = (
+            self.data[SERVICE_NAME_COL] + "$" + self.data[SPAN_NAME_COL]
+        )
 
     def group_by_parent_activity(self):
         """

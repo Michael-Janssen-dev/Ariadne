@@ -5,10 +5,21 @@ from ariadne.storage import ModelStorage
 import click
 
 
+class CLIContext:
+    def __init__(self):
+        self.verbose = False
+
+
 @click.group()
-def cli():
+@click.option(
+    "--verbose", "-v", is_flag=True, help="Enable verbose output for debugging"
+)
+@click.pass_context
+def cli(ctx, verbose):
     """Ariadne CLI: Process Mining for Microservice Traces"""
-    pass
+    context = CLIContext()
+    context.verbose = verbose
+    ctx.obj = context
 
 
 @cli.command()
@@ -48,6 +59,46 @@ def mine(file, output_dir, miner):
     except Exception as e:
         raise click.ClickException(f"Error during processing: {e}")
     click.echo(f"Models saved to directory: {output_dir}", err=True)
+
+
+@cli.command("check")
+@click.option(
+    "-f",
+    "--file",
+    help="Path to the trace data file (CSV format). If not provided, reads from stdin.",
+    type=click.File("rt"),
+    default=sys.stdin,
+)
+@click.option(
+    "--model-dir",
+    "-m",
+    help="Path to the directory containing stored models.",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    required=True,
+)
+@click.option(
+    "--algorithm",
+    "-a",
+    help="Conformance checking algorithm to use (see 'list-conformance-checkers' command).",
+    required=True,
+)
+@click.pass_context
+def check_conformance(ctx, file, model_dir, algorithm):
+    """Check conformance of models against trace data"""
+    from ariadne.use_cases import check_conformance
+    import pandas as pd
+
+    try:
+        df = pd.read_csv(file)
+        model_storage = ModelStorage(Path(model_dir))
+        results = check_conformance(df, algorithm, model_storage=model_storage)
+        click.echo(f"Conformance results: {results}", err=True)
+    except Exception as e:
+        if ctx.obj.verbose:
+            import traceback
+
+            traceback.print_exc()
+        raise click.ClickException(f"Error during conformance checking: {e}")
 
 
 @cli.group()
