@@ -86,6 +86,11 @@ class ModelStorage:
         with open(model_path, "w") as f:
             f.write(model.pnml_content)
 
+        # Save model visualization
+        dot_path = model_dir / "model.dot"
+        with open(dot_path, "w") as f:
+            f.write(model.dot_content)
+
         # Save metadata
         meta = {
             "service_name": service_name,
@@ -98,7 +103,9 @@ class ModelStorage:
         with open(meta_path, "w") as f:
             json.dump(meta, f, indent=2)
 
-    def load_model(self, service_name: str, endpoint_name: str) -> Optional[str]:
+    def load_model(
+        self, service_name: str, endpoint_name: str
+    ) -> Optional[EndpointModel]:
         """
         Load a process model from disk.
 
@@ -120,7 +127,11 @@ class ModelStorage:
         with open(model_path) as f:
             model = f.read()
 
-        return model
+        dot_path = model_dir / "model.dot"
+        with open(dot_path) as f:
+            dot_content = f.read()
+
+        return EndpointModel(pnml_content=model, dot_content=dot_content)
 
     def list_models(self) -> list[tuple[str, str]]:
         """
@@ -140,7 +151,7 @@ class ModelStorage:
                     continue
 
                 # Check if it has a model
-                if (endpoint_dir / "model.json").exists():
+                if (endpoint_dir / "model.pnml").exists():
                     # Read actual names from metadata
                     meta_path = endpoint_dir / "metadata.json"
                     if meta_path.exists():

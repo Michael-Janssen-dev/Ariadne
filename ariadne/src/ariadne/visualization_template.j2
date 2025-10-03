@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        #sidebar {
+            width: 280px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+        }
+
+        #sidebar h2 {
+            padding: 20px;
+            background: #2c3e50;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .search-box {
+            position: sticky;
+            top: 58px;
+            background: white;
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            z-index: 9;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 4px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .search-box input:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+        }
+
+        .search-box .count {
+            font-size: 11px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        #sidebar h3 {
+            padding: 12px 20px 8px;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: #fafafa;
+            border-top: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e0e0e0;
+            margin-top: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 116px;
+            z-index: 8;
+        }
+
+        #sidebar h3 .count {
+            font-size: 11px;
+            background: #666;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: normal;
+        }
+
+        #sidebar h3 .back-btn {
+            background: none;
+            border: none;
+            color: #3498db;
+            cursor: pointer;
+            padding: 0;
+            font-size: 12px;
+            text-transform: none;
+            letter-spacing: normal;
+            width: auto;
+            margin: 0;
+        }
+
+        #sidebar h3 .back-btn:hover {
+            text-decoration: underline;
+            transform: none;
+        }
+
+        #service-list, #endpoint-list {
+            padding: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px 14px;
+            margin: 2px 0;
+            border: 1px solid #e0e0e0;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: all 0.15s ease;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        button:hover {
+            background: #f8f9fa;
+            border-color: #3498db;
+            transform: translateX(2px);
+        }
+
+        button.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+            font-weight: 500;
+        }
+
+        button.hidden {
+            display: none;
+        }
+
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: white;
+        }
+
+        #controls {
+            padding: 12px 16px;
+            background: #fafafa;
+            border-bottom: 1px solid #e0e0e0;
+            display: none;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #controls.visible {
+            display: flex;
+        }
+
+        #controls button {
+            width: auto;
+            padding: 8px 16px;
+            margin: 0;
+            background: white;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        #graph {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        #graph svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        #loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        #loading::after {
+            content: '...';
+            animation: dots 1.5s steps(3, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin: 16px;
+        }
+
+        @media (max-width: 768px) {
+            #sidebar {
+                width: 100%;
+                max-width: 280px;
+                position: absolute;
+                left: 0;
+                top: 0;
+                bottom: 0;
+                z-index: 100;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            #sidebar.open {
+                transform: translateX(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <h2>Models</h2>
+        <div class="search-box" id="search-container" style="display: none;">
+            <input type="text" id="search-input" placeholder="Search...">
+            <div class="count" id="search-count"></div>
+        </div>
+        <div id="service-list"></div>
+        <div id="endpoint-list"></div>
+    </div>
+    <div id="main">
+        <div id="controls">
+            <button onclick="resetZoom()">Reset Zoom</button>
+            <button onclick="fitToScreen()">Fit to Screen</button>
+            <span id="breadcrumb" style="margin-left: auto; color: #666; font-size: 13px;"></span>
+        </div>
+        <div id="graph">
+            <div id="loading">Loading visualization</div>
+        </div>
+    </div>
+</body>
+
+<script type="module">
+    import { instance } from 'https://cdn.jsdelivr.net/npm/@viz-js/viz@3.19.0/+esm';
+
+    const DATA = {{ models | tojson }};
+    const services = Object.keys(DATA).sort();
+
+    let Viz = null;
+    let currentScale = 1;
+    let currentSvg = null;
+    let activeServiceButton = null;
+    let activeEndpointButton = null;
+    let currentService = null;
+    let allServiceButtons = [];
+    let allEndpointButtons = [];
+
+    function showEmpty(message) {
+        const graphContainer = document.getElementById('graph');
+        graphContainer.innerHTML = `<div class="empty-state"><p>${message}</p></div>`;
+        document.getElementById('controls').classList.remove('visible');
+    }
+
+    function showError(message) {
+        const graphContainer = document.getElementById('graph');
+        graphContainer.innerHTML = `<div class="error">${message}</div>`;
+        document.getElementById('controls').classList.remove('visible');
+    }
+
+    function renderGraph(dotContent) {
+        if (!Viz) return;
+
+        const graphContainer = document.getElementById('graph');
+        graphContainer.innerHTML = '<div id="loading">Rendering graph</div>';
+
+        try {
+            const svg = Viz.renderSVGElement(dotContent, { format: 'svg', engine: 'dot' });
+            currentSvg = svg;
+            currentScale = 1;
+
+            graphContainer.innerHTML = '';
+            graphContainer.appendChild(svg);
+            document.getElementById('controls').classList.add('visible');
+
+            // Enable mouse wheel zoom
+            svg.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                currentScale *= delta;
+                svg.style.transform = `scale(${currentScale})`;
+            });
+        } catch (error) {
+            showError(`Error rendering graph: ${error.message}`);
+        }
+    }
+
+    window.resetZoom = function() {
+        if (currentSvg) {
+            currentScale = 1;
+            currentSvg.style.transform = 'scale(1)';
+        }
+    };
+
+    window.fitToScreen = function() {
+        if (currentSvg) {
+            const container = document.getElementById('graph');
+            const containerWidth = container.clientWidth;
+            const svgWidth = currentSvg.getBBox().width;
+            currentScale = (containerWidth * 0.9) / svgWidth;
+            currentSvg.style.transform = `scale(${currentScale})`;
+        }
+    };
+
+    function filterItems(searchTerm, buttons) {
+        const term = searchTerm.toLowerCase();
+        let visibleCount = 0;
+
+        buttons.forEach(btn => {
+            const text = btn.textContent.toLowerCase();
+            if (text.includes(term)) {
+                btn.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                btn.classList.add('hidden');
+            }
+        });
+
+        return visibleCount;
+    }
+
+    function updateSearchCount(visible, total) {
+        const countEl = document.getElementById('search-count');
+        if (visible === total) {
+            countEl.textContent = `${total} items`;
+        } else {
+            countEl.textContent = `${visible} of ${total} items`;
+        }
+    }
+
+    function setupSearch(buttons, isEndpoints = false) {
+        const searchContainer = document.getElementById('search-container');
+        const searchInput = document.getElementById('search-input');
+
+        if (buttons.length > 10) {
+            searchContainer.style.display = 'block';
+            searchInput.placeholder = isEndpoints ? 'Search endpoints...' : 'Search services...';
+            searchInput.value = '';
+
+            searchInput.oninput = (e) => {
+                const visible = filterItems(e.target.value, buttons);
+                updateSearchCount(visible, buttons.length);
+            };
+
+            updateSearchCount(buttons.length, buttons.length);
+        } else {
+            searchContainer.style.display = 'none';
+        }
+    }
+
+    function renderEndpointList(serviceName, endpoints) {
+        const container = document.getElementById('endpoint-list');
+        const sortedEndpoints = endpoints.sort();
+
+        const backBtn = '<button class="back-btn" onclick="backToServices()">&lt; Back to Services</button>';
+        container.innerHTML = `<h3><span>Endpoints</span><span class="count">${sortedEndpoints.length}</span></h3>`;
+
+        if (sortedEndpoints.length === 0) {
+            container.innerHTML += '<div class="empty-state"><p>No endpoints found</p></div>';
+            return;
+        }
+
+        currentService = serviceName;
+        activeEndpointButton = null;
+        allEndpointButtons = [];
+
+        for (const endpointName of sortedEndpoints) {
+            const button = document.createElement('button');
+            button.title = endpointName; // Full text on hover
+            button.onclick = () => {
+                if (activeEndpointButton) {
+                    activeEndpointButton.classList.remove('active');
+                }
+                button.classList.add('active');
+                activeEndpointButton = button;
+
+                const dotContent = DATA[serviceName][endpointName]["dot"];
+                renderGraph(dotContent);
+                updateBreadcrumb(serviceName, endpointName);
+            };
+            button.textContent = endpointName;
+            allEndpointButtons.push(button);
+            container.appendChild(button);
+        }
+
+        setupSearch(allEndpointButtons, true);
+    }
+
+    window.backToServices = function() {
+        document.getElementById('endpoint-list').innerHTML = '';
+        currentService = null;
+        showEmpty('Select a service from the sidebar to begin');
+        updateBreadcrumb();
+        setupSearch(allServiceButtons, false);
+    };
+
+    function updateBreadcrumb(serviceName = null, endpointName = null) {
+        const breadcrumb = document.getElementById('breadcrumb');
+        if (serviceName && endpointName) {
+            breadcrumb.textContent = `${serviceName} > ${endpointName}`;
+        } else {
+            breadcrumb.textContent = '';
+        }
+    }
+
+    function renderServiceList() {
+        const container = document.getElementById('service-list');
+
+        if (services.length === 0) {
+            showEmpty('No services found');
+            return;
+        }
+
+        allServiceButtons = [];
+
+        for (const serviceName of services) {
+            const button = document.createElement('button');
+            button.title = serviceName; // Full text on hover
+            button.onclick = () => {
+                if (activeServiceButton) {
+                    activeServiceButton.classList.remove('active');
+                }
+                button.classList.add('active');
+                activeServiceButton = button;
+
+                const endpoints = Object.keys(DATA[serviceName]);
+                renderEndpointList(serviceName, endpoints);
+
+                showEmpty('Select an endpoint from the sidebar');
+            };
+            button.textContent = serviceName;
+            allServiceButtons.push(button);
+            container.appendChild(button);
+        }
+
+        setupSearch(allServiceButtons, false);
+    }
+
+    // Initialize and render
+    instance().then(viz => {
+        Viz = viz;
+        renderServiceList();
+
+        // Show initial empty state
+        if (services.length > 0) {
+            showEmpty('Select a service from the sidebar to begin');
+        }
+    }).catch(error => {
+        showError(`Failed to load visualization library: ${error.message}`);
+    });
+</script>
+</html>

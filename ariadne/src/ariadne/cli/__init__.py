@@ -1,6 +1,7 @@
 from ariadne.cli.convert import convert
 from ariadne.cli.mine import mine
 from ariadne.cli.check import check_conformance
+from ariadne.cli.visualize import visualize
 import click
 
 
@@ -24,6 +25,7 @@ def cli(ctx, verbose):
 cli.add_command(mine)
 cli.add_command(check_conformance)
 cli.add_command(convert)
+cli.add_command(visualize)
 
 if __name__ == "__main__":
     cli()

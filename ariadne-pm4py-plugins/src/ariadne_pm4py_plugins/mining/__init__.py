@@ -14,7 +14,7 @@ from .layered.algorithm import (
 from pm4py.algo.discovery.inductive.algorithm import Variants as InductiveVariants
 from pm4py.convert import convert_to_petri_net
 from pm4py.objects.petri_net.exporter.variants.pnml import export_petri_tree
-from pm4py.visualization.petri_net import visualizer as pn_visualizer
+from pm4py.visualization.bpmn import visualizer as bpmn_visualizer
 from pm4py.algo.discovery.inductive import algorithm as inductive
 
 
@@ -65,5 +65,6 @@ class PM4PyMiningAlgorithm(MiningAlgorithm):
         petri_net, im, fm = convert_to_petri_net(tree)
         pnml_tree: ET.ElementTree = export_petri_tree(petri_net, im, fm)
         pnml = ET.tostring(pnml_tree.getroot(), encoding="utf-8").decode("utf-8")  # type: ignore
-        dot = pn_visualizer.apply(petri_net, im, fm).source
+        bpmn = pm4py.convert_to_bpmn(petri_net, im, fm)  # type: ignore
+        dot = bpmn_visualizer.apply(bpmn).source
         return EndpointModel(pnml_content=pnml, dot_content=dot)

@@ -1,4 +1,3 @@
-from ariadne.domain.models.process_model import EndpointModel
 from ariadne.domain.models.traces import TraceLogFactory
 from ariadne.storage import ModelStorage
 import pandas as pd
@@ -59,10 +58,9 @@ def check_conformance(
     algorithm = conformance_registry[algorithm_name]({})
 
     for (service_name, name), group in preprocessed.group_by_parent_activity():
-        pnml = model_storage.load_model(service_name, name)
-        if pnml is None:
+        model = model_storage.load_model(service_name, name)
+        if model is None:
             continue
-        model = EndpointModel(pnml_content=pnml, dot_content="")
         result = algorithm.check_conformance(model, group)
         results[(service_name, name)] = result
 
@@ -85,3 +83,26 @@ def list_conformance_checkers():
         (checker.name, checker.display_name, checker.description)
         for checker in conformance_registry.values()
     ]
+
+
+def render_visualization_html(model_storage: ModelStorage):
+    from jinja2 import Environment, FileSystemLoader
+    import os
+
+    # Load the Jinja2 template
+    env = Environment(loader=FileSystemLoader(os.path.dirname(__file__)))
+    template = env.get_template("visualization_template.j2")
+
+    models = {}
+    for service_name, endpoint_name in model_storage.list_models():
+        model = model_storage.load_model(service_name, endpoint_name)
+        if model is None:
+            continue
+        if service_name not in models:
+            models[service_name] = {}
+        models[service_name][endpoint_name] = {"dot": model.dot_content}
+
+    # Render the template with the models
+    rendered_html = template.render(models=models)
+
+    return rendered_html
