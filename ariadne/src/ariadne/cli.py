@@ -22,6 +22,18 @@ def cli(ctx, verbose):
     ctx.obj = context
 
 
+def list_miners(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    from ariadne.use_cases import list_miners
+
+    miners = list_miners()
+    click.echo("Available Mining Plugins:")
+    for miner in miners:
+        click.echo(f"- {miner}")
+    ctx.exit()
+
+
 @cli.command()
 @click.option(
     "-f",
@@ -39,8 +51,15 @@ def cli(ctx, verbose):
 )
 @click.option(
     "--miner",
-    help="Mining algorithm to use (see 'list-miners' command).",
+    help="Mining algorithm to use.",
     required=True,
+)
+@click.option(
+    "--list-miners",
+    is_flag=True,
+    is_eager=True,
+    expose_value=False,
+    callback=list_miners,
 )
 def mine(file, output_dir, miner):
     import pandas as pd
@@ -61,6 +80,18 @@ def mine(file, output_dir, miner):
     click.echo(f"Models saved to directory: {output_dir}", err=True)
 
 
+def list_checkers(ctx, param, value):
+    if not value or ctx.resilient_parsing:
+        return
+    from ariadne.use_cases import list_conformance_checkers
+
+    checkers = list_conformance_checkers()
+    click.echo("Available Conformance Checkers:")
+    for checker in checkers:
+        click.echo(f"- {checker}")
+    ctx.exit()
+
+
 @cli.command("check")
 @click.option(
     "-f",
@@ -77,10 +108,18 @@ def mine(file, output_dir, miner):
     required=True,
 )
 @click.option(
-    "--algorithm",
-    "-a",
-    help="Conformance checking algorithm to use (see 'list-conformance-checkers' command).",
+    "--checker",
+    "-c",
+    help="Conformance checking algorithm to use.",
     required=True,
+)
+@click.option(
+    "--list-checkers",
+    is_flag=True,
+    is_eager=True,
+    expose_value=False,
+    callback=list_checkers,
+    help="List all available conformance checking plugins and exit.",
 )
 @click.pass_context
 def check_conformance(ctx, file, model_dir, algorithm):
@@ -142,18 +181,6 @@ def from_elastic(file, output_path):
 
     except Exception as e:
         raise click.ClickException(f"Error during conversion: {e}")
-
-
-@cli.command()
-def list_miners():
-    """List all available mining plugins"""
-    from ariadne.infrastructure.plugin_registry import mining_registry
-
-    plugins = mining_registry.list_plugins()
-
-    click.echo("Available Mining Plugins:")
-    for plugin_name in plugins:
-        click.echo(f"- {plugin_name}")
 
 
 if __name__ == "__main__":

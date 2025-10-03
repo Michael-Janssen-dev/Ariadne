@@ -67,3 +67,21 @@ def check_conformance(
         results[(service_name, name)] = result
 
     return results
+
+
+def list_miners():
+    from ariadne.infrastructure.plugin_registry import mining_registry
+
+    return [
+        (miner.name, miner.display_name, miner.description)
+        for miner in mining_registry.values()
+    ]
+
+
+def list_conformance_checkers():
+    from ariadne.infrastructure.plugin_registry import conformance_registry
+
+    return [
+        (checker.name, checker.display_name, checker.description)
+        for checker in conformance_registry.values()
+    ]
