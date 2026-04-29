@@ -1,6 +1,7 @@
+import pandas as pd
+
 from ariadne.domain.models.traces import TraceLogFactory
 from ariadne.storage import ModelStorage
-import pandas as pd
 
 
 def process_trace_data(df: pd.DataFrame, miner_name: str, *, storage: ModelStorage):
@@ -86,8 +87,9 @@ def list_conformance_checkers():
 
 
 def render_visualization_html(model_storage: ModelStorage):
-    from jinja2 import Environment, FileSystemLoader
     import os
+
+    from jinja2 import Environment, FileSystemLoader
 
     # Load the Jinja2 template
     env = Environment(loader=FileSystemLoader(os.path.dirname(__file__)))
