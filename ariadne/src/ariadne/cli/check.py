@@ -1,6 +1,9 @@
-import click
 import sys
 from pathlib import Path
+
+import click
+
+from ariadne.use_cases import list_conformance_checkers
 
 
 def list_checkers(ctx, param, value):
@@ -13,6 +16,9 @@ def list_checkers(ctx, param, value):
     for checker in checkers:
         click.echo(f"- {checker}")
     ctx.exit()
+
+
+AVAILABLE_CHECKERS = [x[0] for x in list_conformance_checkers()]
 
 
 @click.command("check")
@@ -35,30 +41,24 @@ def list_checkers(ctx, param, value):
     "-c",
     help="Conformance checking algorithm to use.",
     required=True,
-)
-@click.option(
-    "--list-checkers",
-    is_flag=True,
-    is_eager=True,
-    expose_value=False,
-    callback=list_checkers,
-    help="List all available conformance checking plugins and exit.",
+    type=click.Choice(AVAILABLE_CHECKERS),
 )
 @click.pass_context
-def check_conformance(ctx, file, model_dir, algorithm):
+def check_conformance(ctx, file, model_dir, checker):
     """Check conformance of models against trace data"""
-    from ariadne.use_cases import check_conformance
-    from ariadne.storage import ModelStorage
     import pandas as pd
 
-    try:
-        df = pd.read_csv(file)
-        model_storage = ModelStorage(Path(model_dir))
-        results = check_conformance(df, algorithm, model_storage=model_storage)
-        click.echo(f"Conformance results: {results}", err=True)
-    except Exception as e:
-        if ctx.obj.verbose:
-            import traceback
+    from ariadne.storage import ModelStorage
+    from ariadne.use_cases import check_conformance
 
-            traceback.print_exc()
-        raise click.ClickException(f"Error during conformance checking: {e}")
+    # try:
+    df = pd.read_csv(file)
+    model_storage = ModelStorage(Path(model_dir))
+    results = check_conformance(df, checker, model_storage=model_storage)
+    click.echo(f"Conformance results: {results}", err=True)
+    # except Exception as e:
+    #     if ctx.obj.verbose:
+    #         import traceback
+
+    #         traceback.print_exc()
+    #     raise click.ClickException(f"Error during conformance checking: {e}")

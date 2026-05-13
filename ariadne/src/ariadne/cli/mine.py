@@ -1,6 +1,7 @@
-import click
 import os
 import sys
+
+import click
 
 
 def list_miners(ctx, param, value):
@@ -43,10 +44,12 @@ def list_miners(ctx, param, value):
     callback=list_miners,
 )
 def mine(file, output_dir, miner):
-    import pandas as pd
-    from ariadne.use_cases import process_trace_data
-    from ariadne.storage import ModelStorage
     from pathlib import Path
+
+    import pandas as pd
+
+    from ariadne.storage import ModelStorage
+    from ariadne.use_cases import process_trace_data
 
     if os.isatty(file.fileno()):
         raise click.ClickException("No input file provided or stdin is not a terminal.")
@@ -56,8 +59,8 @@ def mine(file, output_dir, miner):
 
     storage = ModelStorage(Path(output_dir))
     df = pd.read_csv(file)
-    try:
-        process_trace_data(df, miner, storage=storage)
-    except Exception as e:
-        raise click.ClickException(f"Error during processing: {e}")
+    # try:
+    process_trace_data(df, miner, storage=storage)
+    # except Exception as e:
+    #     raise click.ClickException(f"Error during processing: {e}")
     click.echo(f"Models saved to directory: {output_dir}", err=True)

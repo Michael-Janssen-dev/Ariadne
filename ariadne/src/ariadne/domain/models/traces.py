@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from functools import lru_cache
+
 import pandas as pd
+
+from ariadne.constants import *
 
 
 @dataclass
@@ -16,15 +19,6 @@ class EndpointChildSpans:
 
 
 EMPTY_VALUES_STR = "null,NULL,none,None,-,N/A,n/a,"
-TRACE_ID_COL = "trace_id"
-SPAN_ID_COL = "span_id"
-PARENT_ID_COL = "parent_span_id"
-SPAN_NAME_COL = "name"
-SERVICE_NAME_COL = "service_name"
-START_TIME_COL = "start_time"
-END_TIME_COL = "end_time"
-
-ACTIVITY_NAME_COL = "activity_name"
 
 
 @dataclass
@@ -110,23 +104,26 @@ class PreprocessedTraceLog(TraceLog):
         self.data.loc[:, ACTIVITY_NAME_COL] = (
             self.data[SERVICE_NAME_COL] + "$" + self.data[SPAN_NAME_COL]
         )
+        self.data = self.data.drop_duplicates(subset=["span_id"])
+        parent_key = self.data["parent_span_id"].map(
+            self.data.set_index("span_id").apply(
+                lambda r: f"{r[SERVICE_NAME_COL]}${r[SPAN_NAME_COL]}", axis=1
+            )
+        )
+        self.data.loc[:, "parent_activity_name"] = parent_key
+        self.counts = self.data["activity_name"].value_counts()
 
     def group_by_parent_activity(self):
         """
         Groups spans by their parent activity, yielding tuples of (service_name, span_name) and corresponding child spans.
         """
-        for (service_name, span_name), group in self.data.groupby(
-            ["service_name", "name"]
-        ):
-            filtered_data = self.data[
-                self.data["parent_span_id"].isin(group["span_id"])
-            ]
-            total_traces = len(group["trace_id"].unique())
+        for activity_name, group in self.data.groupby("parent_activity_name"):
+            service_name, span_name = str(activity_name).split("$")
             yield (
                 (service_name, span_name),
                 EndpointChildSpans(
-                    data=filtered_data,
-                    total_traces=total_traces,
+                    data=group,
+                    total_traces=self.counts[activity_name],
                     service_name=service_name,
                     endpoint_name=span_name,
                 ),

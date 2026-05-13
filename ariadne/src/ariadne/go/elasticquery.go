@@ -1,4 +1,4 @@
-package main
+package ariadnego
 
 import (
 	"bufio"
@@ -17,33 +17,29 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
-func main() {
-	esURL := flag.String("es", "http://localhost:9200", "Elasticsearch URL")
-	indexSubstring := flag.String("index-substring", "span", "Index name substring to match")
-	outputPath := flag.String("output", "spans.csv", "Output file path ('-' for stdout)")
-	pageSize := flag.Int("page-size", 1000, "Documents per page")
+func jaegerElastic(esURL, indexSubstring, outputPath string, pageSize int) {
 	flag.Parse()
 
-	es, err := elasticsearch.NewClient(elasticsearch.Config{Addresses: []string{*esURL}})
+	es, err := elasticsearch.NewClient(elasticsearch.Config{Addresses: []string{esURL}})
 	if err != nil {
 		log.Fatalf("create client: %v", err)
 	}
 
-	indices, err := findMatchingIndices(es, *indexSubstring)
+	indices, err := findMatchingIndices(es, indexSubstring)
 	if err != nil {
 		log.Fatalf("list indices: %v", err)
 	}
 	if len(indices) == 0 {
-		log.Fatalf("no indices match substring %q", *indexSubstring)
+		log.Fatalf("no indices match substring %q", indexSubstring)
 	}
 
-	writer, closer, err := openOutput(*outputPath)
+	writer, closer, err := openOutput(outputPath)
 	if err != nil {
 		log.Fatalf("open output: %v", err)
 	}
 	defer closer()
 
-	if err := exportIndices(context.Background(), es, indices, *pageSize, writer); err != nil {
+	if err := exportIndices(context.Background(), es, indices, pageSize, writer); err != nil {
 		log.Fatalf("export: %v", err)
 	}
 }

@@ -1,20 +1,20 @@
 from collections import Counter
 from copy import copy
+from typing import Any, List, Optional, Tuple
 
-from pm4py.util.compression.dtypes import UVCL
+from pm4py.algo.discovery.inductive.variants.abc import InductiveMinerFramework
 from pm4py.objects.dfg.obj import DFG
+from pm4py.objects.process_tree.obj import ProcessTree
 from pm4py.objects.process_tree.utils import generic as pt_util
 from pm4py.objects.process_tree.utils.generic import tree_sort
-from typing import Any, List, Tuple, Optional
-from pm4py.algo.discovery.inductive.variants.abc import InductiveMinerFramework
-from .dtypes.imlc import IMLCDataStructureUVCL
+from pm4py.util.compression.dtypes import UVCL
+
+from .base_cases.factory import IMLCBaseCaseFactory
 from .cuts.factory import IMLCCutFactory
+from .dtypes.imlc import IMLCDataStructureUVCL
 from .fall_through.empty_traces import NonAtomicEmptyTracesUVCL
 from .fall_through.factory import IMLCFallThroughFactory
-from .base_cases.factory import IMLCBaseCaseFactory
-from pm4py.objects.process_tree.obj import ProcessTree
-
-from .util import is_start, base
+from .util import base, is_start
 
 
 class IMLC(InductiveMinerFramework[IMLCDataStructureUVCL]):

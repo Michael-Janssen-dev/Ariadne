@@ -1,11 +1,11 @@
 from collections import Counter
-from typing import Collection, Any, Optional, Tuple
+from typing import Any, Collection, Optional, Tuple
 
 from pm4py.algo.discovery.inductive.cuts.sequence import SequenceCutUVCL
 from pm4py.algo.discovery.inductive.dtypes.im_ds import IMDataStructureUVCL
 
 from ..dtypes.imlc import IMLCDataStructureUVCL
-from ..util import is_end, base, is_start
+from ..util import base, is_end, is_start
 
 
 class NonAtomicSequenceCutUVCL(SequenceCutUVCL):
@@ -83,18 +83,23 @@ class NonAtomicSequenceCutUVCL(SequenceCutUVCL):
                                 started.remove(base_activity)
                         trace_i = trace_i + (t[j],)
                     j = j + 1
-                while len(started) > 0:
+                while len(started) > 0 and j < len(t):
                     # We find the closest corresponding end activity
                     if is_end(t[j]) and base(t[j]) in started:
                         trace_i = trace_i + (t[j],)
                         started.remove(base(t[j]))
                     j += 1
+                if len(started) > 0:
+                    trace_i = trace_i + tuple(started)
                 j = split_point
-                while len(ended) > 0:
+                # print(groups, t, j, started, ended)
+                while len(ended) > 0 and j >= 0:
                     if is_start(t[j]) and base(t[j]) in ended:
                         trace_i = (t[j],) + trace_i
                         ended.remove(base(t[j]))
                     j -= 1
+                if len(ended) > 0:
+                    trace_i = tuple(ended) + trace_i
                 logs[i].update({trace_i: obj.data_structure[t]})
                 split_point = new_split_point
                 act_union = act_union.union(set(groups[i]))

@@ -1,8 +1,10 @@
+import click
+
+from ariadne.cli.check import check_conformance
+from ariadne.cli.collect import collect_traces
 from ariadne.cli.convert import convert
 from ariadne.cli.mine import mine
-from ariadne.cli.check import check_conformance
 from ariadne.cli.visualize import visualize
-import click
 
 
 class CLIContext:
@@ -26,6 +28,7 @@ cli.add_command(mine)
 cli.add_command(check_conformance)
 cli.add_command(convert)
 cli.add_command(visualize)
+cli.add_command(collect_traces)
 
 if __name__ == "__main__":
     cli()
