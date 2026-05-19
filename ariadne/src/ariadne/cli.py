@@ -3,42 +3,44 @@ import sys
 from pathlib import Path
 
 import click
-import pandas as pd
 
 from ariadne._go import collect
-from ariadne.use_cases import list_conformance_checkers
-
-
-class CLIContext:
-    def __init__(self):
-        self.verbose = False
+from ariadne.use_cases import list_conformance_checkers, list_miners
 
 
 @click.group()
-@click.option(
-    "--verbose", "-v", is_flag=True, help="Enable verbose output for debugging"
-)
-@click.pass_context
-def cli(ctx, verbose):
+def cli():
     """Ariadne CLI: Process Mining for Microservice Traces"""
-    context = CLIContext()
-    context.verbose = verbose
-    ctx.obj = context
 
 
-def list_miners(ctx, param, value):
-    if not value or ctx.resilient_parsing:
-        return
-    from ariadne.use_cases import list_miners
+def _list_plugins_callback(ls, label):
+    def callback(ctx, param, value):
+        if value or ctx.resilient_parsing:
+            return
+        click.echo("Error: Missing option '--algorithm' / '-a'", err=True)
+        click.echo(f"Available {label} algorithms:", err=True)
+        for name, *_ in ls:
+            click.echo(f"- {name}", err=True)
+        ctx.exit()
 
-    miners = list_miners()
-    click.echo("Available Mining Plugins:")
-    for miner in miners:
-        click.echo(f"- {miner}")
-    ctx.exit()
+    return callback
 
 
-@click.command()
+def algorithm(name: str, list_fn):
+    options = list_fn()
+    return click.option(
+        "--algorithm",
+        "--algo",
+        "-a",
+        help=f"{name.capitalize()} algorithm to use.",
+        is_eager=True,
+        callback=_list_plugins_callback(options, name),
+        type=click.Choice([x[0] for x in options]),
+    )
+
+
+@cli.command()
+@algorithm("mining", list_miners)
 @click.option(
     "-f",
     "--file",
@@ -53,19 +55,7 @@ def list_miners(ctx, param, value):
     type=click.Path(writable=True, file_okay=False, dir_okay=True),
     required=True,
 )
-@click.option(
-    "--miner",
-    help="Mining algorithm to use.",
-    required=True,
-)
-@click.option(
-    "--list-miners",
-    is_flag=True,
-    is_eager=True,
-    expose_value=False,
-    callback=list_miners,
-)
-def mine(file, output_dir, miner):
+def mine(file, output_dir, algorithm):
     from pathlib import Path
 
     import pandas as pd
@@ -81,29 +71,12 @@ def mine(file, output_dir, miner):
 
     storage = ModelStorage(Path(output_dir))
     df = pd.read_csv(file)
-    # try:
-    process_trace_data(df, miner, storage=storage)
-    # except Exception as e:
-    #     raise click.ClickException(f"Error during processing: {e}")
+    process_trace_data(df, algorithm, storage=storage)
     click.echo(f"Models saved to directory: {output_dir}", err=True)
 
 
-def list_checkers(ctx, param, value):
-    if not value or ctx.resilient_parsing:
-        return
-    from ariadne.use_cases import list_conformance_checkers
-
-    checkers = list_conformance_checkers()
-    click.echo("Available Conformance Checkers:")
-    for checker in checkers:
-        click.echo(f"- {checker}")
-    ctx.exit()
-
-
-AVAILABLE_CHECKERS = [x[0] for x in list_conformance_checkers()]
-
-
-@click.command("check")
+@cli.command("check")
+@algorithm("checker", list_conformance_checkers)
 @click.option(
     "-f",
     "--file",
@@ -118,13 +91,6 @@ AVAILABLE_CHECKERS = [x[0] for x in list_conformance_checkers()]
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     required=True,
 )
-@click.option(
-    "--checker",
-    "-c",
-    help="Conformance checking algorithm to use.",
-    required=True,
-    type=click.Choice(AVAILABLE_CHECKERS),
-)
 @click.pass_context
 def check_conformance(ctx, file, model_dir, checker):
     """Check conformance of models against trace data"""
@@ -133,26 +99,19 @@ def check_conformance(ctx, file, model_dir, checker):
     from ariadne.storage import ModelStorage
     from ariadne.use_cases import check_conformance
 
-    # try:
     df = pd.read_csv(file)
     model_storage = ModelStorage(Path(model_dir))
     results = check_conformance(df, checker, model_storage=model_storage)
     click.echo(f"Conformance results: {results}", err=True)
-    # except Exception as e:
-    #     if ctx.obj.verbose:
-    #         import traceback
-
-    #         traceback.print_exc()
-    #     raise click.ClickException(f"Error during conformance checking: {e}")
 
 
-@click.group()
+@cli.group()
 def convert():
     """Convert to OTEL CSV format from other formats"""
     pass
 
 
-@click.command()
+@convert.command()
 @click.option(
     "-f",
     "--file",
@@ -193,7 +152,7 @@ def from_elastic(file, output_path):
 convert.add_command(from_elastic)
 
 
-@click.command()
+@cli.command()
 @click.option(
     "--model-dir",
     "-m",
@@ -237,7 +196,7 @@ def visualize(model_dir, output_path, open):
         webbrowser.open_new_tab(f"file://{Path(output_path.name).resolve()}")
 
 
-@click.command("collect")
+@cli.command("collect")
 def collect_traces():
     collect("60s")
 
