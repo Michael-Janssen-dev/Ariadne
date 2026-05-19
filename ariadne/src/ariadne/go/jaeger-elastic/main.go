@@ -1,4 +1,4 @@
-package ariadnego
+package main
 
 import (
 	"bufio"
@@ -17,29 +17,33 @@ import (
 	"github.com/elastic/go-elasticsearch/v8"
 )
 
-func jaegerElastic(esURL, indexSubstring, outputPath string, pageSize int) {
+func main() {
+	esURL := flag.String("es", "http://localhost:9200", "Elasticsearch URL")
+	indexSubstring := flag.String("index-substring", "span", "Index name substring to match")
+	outputPath := flag.String("output", "spans.csv", "Output file path ('-' for stdout)")
+	pageSize := flag.Int("page-size", 1000, "Documents per page")
 	flag.Parse()
 
-	es, err := elasticsearch.NewClient(elasticsearch.Config{Addresses: []string{esURL}})
+	es, err := elasticsearch.NewClient(elasticsearch.Config{Addresses: []string{*esURL}})
 	if err != nil {
 		log.Fatalf("create client: %v", err)
 	}
 
-	indices, err := findMatchingIndices(es, indexSubstring)
+	indices, err := findMatchingIndices(es, *indexSubstring)
 	if err != nil {
 		log.Fatalf("list indices: %v", err)
 	}
 	if len(indices) == 0 {
-		log.Fatalf("no indices match substring %q", indexSubstring)
+		log.Fatalf("no indices match substring %q", *indexSubstring)
 	}
 
-	writer, closer, err := openOutput(outputPath)
+	writer, closer, err := openOutput(*outputPath)
 	if err != nil {
 		log.Fatalf("open output: %v", err)
 	}
 	defer closer()
 
-	if err := exportIndices(context.Background(), es, indices, pageSize, writer); err != nil {
+	if err := exportIndices(context.Background(), es, indices, *pageSize, writer); err != nil {
 		log.Fatalf("export: %v", err)
 	}
 }
@@ -55,6 +59,19 @@ type searchResponse struct {
 			Source map[string]any `json:"_source"`
 		} `json:"hits"`
 	} `json:"hits"`
+}
+
+type compositeResponse struct {
+	Aggregations struct {
+		BadTraces struct {
+			AfterKey map[string]any `json:"after_key"`
+			Buckets  []struct {
+				Key struct {
+					TraceID string `json:"traceID"`
+				} `json:"key"`
+			} `json:"buckets"`
+		} `json:"bad_traces"`
+	} `json:"aggregations"`
 }
 
 func findMatchingIndices(es *elasticsearch.Client, substring string) ([]string, error) {
@@ -104,8 +121,14 @@ func exportIndices(ctx context.Context, es *elasticsearch.Client, indices []stri
 		return fmt.Errorf("write header: %w", err)
 	}
 
+	badTraceIDs, err := findErrorTraceIDs(ctx, es, indices)
+	if err != nil {
+		return fmt.Errorf("find error traces: %w", err)
+	}
+	log.Printf("excluding %d traces with errors", len(badTraceIDs))
+
 	for _, index := range indices {
-		if err := exportIndex(ctx, es, index, pageSize, csvWriter); err != nil {
+		if err := exportIndex(ctx, es, index, pageSize, csvWriter, badTraceIDs); err != nil {
 			return fmt.Errorf("export index %s: %w", index, err)
 		}
 	}
@@ -121,8 +144,95 @@ func exportIndices(ctx context.Context, es *elasticsearch.Client, indices []stri
 	return nil
 }
 
-func exportIndex(ctx context.Context, es *elasticsearch.Client, index string, pageSize int, csvWriter *csv.Writer) error {
-	bodyBytes, err := json.Marshal(buildSearchBody())
+// findErrorTraceIDs collects every traceID that has at least one span tagged
+// error=true, across all matching indices. It uses a composite aggregation so
+// the result set is paginated and not subject to terms-aggregation truncation.
+func findErrorTraceIDs(ctx context.Context, es *elasticsearch.Client, indices []string) (map[string]struct{}, error) {
+	badTraceIDs := make(map[string]struct{})
+	var afterKey map[string]any
+
+	for {
+		bodyBytes, err := json.Marshal(buildErrorTraceAggBody(afterKey))
+		if err != nil {
+			return nil, fmt.Errorf("build agg body: %w", err)
+		}
+
+		res, err := es.Search(
+			es.Search.WithContext(ctx),
+			es.Search.WithIndex(indices...),
+			es.Search.WithSize(0),
+			es.Search.WithBody(bytes.NewReader(bodyBytes)),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("agg search: %w", err)
+		}
+
+		if res.IsError() {
+			res.Body.Close()
+			return nil, fmt.Errorf("agg search error: %s", res.String())
+		}
+
+		var parsed compositeResponse
+		if err := json.NewDecoder(res.Body).Decode(&parsed); err != nil {
+			res.Body.Close()
+			return nil, fmt.Errorf("decode agg: %w", err)
+		}
+		res.Body.Close()
+
+		buckets := parsed.Aggregations.BadTraces.Buckets
+		for _, b := range buckets {
+			badTraceIDs[b.Key.TraceID] = struct{}{}
+		}
+
+		if len(buckets) == 0 || parsed.Aggregations.BadTraces.AfterKey == nil {
+			break
+		}
+		afterKey = parsed.Aggregations.BadTraces.AfterKey
+	}
+
+	return badTraceIDs, nil
+}
+
+func buildErrorTraceAggBody(afterKey map[string]any) map[string]any {
+	composite := map[string]any{
+		"size": 1000,
+		"sources": []any{
+			map[string]any{
+				"traceID": map[string]any{
+					"terms": map[string]any{"field": "traceID"},
+				},
+			},
+		},
+	}
+	if afterKey != nil {
+		composite["after"] = afterKey
+	}
+
+	return map[string]any{
+		"size": 0,
+		"query": map[string]any{
+			"nested": map[string]any{
+				"path": "tags",
+				"query": map[string]any{
+					"bool": map[string]any{
+						"must": []any{
+							map[string]any{"term": map[string]any{"tags.key": "error"}},
+							map[string]any{"term": map[string]any{"tags.value": "true"}},
+						},
+					},
+				},
+			},
+		},
+		"aggs": map[string]any{
+			"bad_traces": map[string]any{
+				"composite": composite,
+			},
+		},
+	}
+}
+
+func exportIndex(ctx context.Context, es *elasticsearch.Client, index string, pageSize int, csvWriter *csv.Writer, badTraceIDs map[string]struct{}) error {
+	bodyBytes, err := json.Marshal(buildSearchBody(badTraceIDs))
 	if err != nil {
 		return fmt.Errorf("build search body: %w", err)
 	}
@@ -190,11 +300,29 @@ func exportIndex(ctx context.Context, es *elasticsearch.Client, index string, pa
 	return nil
 }
 
-func buildSearchBody() map[string]any {
+func buildSearchBody(badTraceIDs map[string]struct{}) map[string]any {
+	query := map[string]any{
+		"match_all": map[string]any{},
+	}
+
+	if len(badTraceIDs) > 0 {
+		ids := make([]string, 0, len(badTraceIDs))
+		for id := range badTraceIDs {
+			ids = append(ids, id)
+		}
+		query = map[string]any{
+			"bool": map[string]any{
+				"must_not": []any{
+					map[string]any{
+						"terms": map[string]any{"traceID": ids},
+					},
+				},
+			},
+		}
+	}
+
 	return map[string]any{
-		"query": map[string]any{
-			"match_all": map[string]any{},
-		},
+		"query": query,
 		"_source": map[string]any{
 			"includes": []string{
 				"duration",

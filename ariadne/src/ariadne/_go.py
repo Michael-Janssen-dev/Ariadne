@@ -13,3 +13,17 @@ def collect(duration: str):
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
+
+
+def convert_jaeger_elastic():
+    path = _GO_PROGRAMS_DIR / "jaeger-elastic"
+    subprocess.run(
+        [
+            "go",
+            "run",
+            path,
+        ],
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+    )
