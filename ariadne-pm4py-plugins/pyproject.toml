@@ -11,6 +11,10 @@ dependencies = [
     "ariadne",
     "pm4py>=2.7.17",
 ]
+license = "AGPL-3.0-or-later"
+license-files = [
+    "LICENSE",
+]
 
 [build-system]
 requires = ["hatchling"]
