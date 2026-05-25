@@ -1,12 +1,12 @@
 from collections import Counter
 from dataclasses import dataclass
-from typing import Tuple, TypeVar, Generic, Type
+from typing import Generic, Tuple, Type, TypeVar
 
 from pm4py import ProcessTree
 from pm4py.algo.discovery.inductive.base_case.abc import BaseCase
 from pm4py.algo.discovery.inductive.cuts.abc import Cut
 
-from analysis.trace_mining.imlc.dtypes.imlc import IMLCDataStructureUVCL
+from ariadne_pm4py_plugins.mining.imlc.dtypes.imlc import IMLCDataStructureUVCL
 
 T = TypeVar("T")
 

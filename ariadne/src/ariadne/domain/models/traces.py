@@ -85,12 +85,18 @@ class TraceLog:
         log.loc[mask, PARENT_ID_COL] = None
         self.data = log
 
+    def _create_case_ids(self):
+        log = self.data
+        log["case_id"] = log["trace_id"] + ":" + log["parent_span_id"]
+        self.data = log
+
     def preprocess(self):
         """
         Preprocesses the trace log data, such as formatting timestamps.
         """
         self._remove_self_referencing_spans()
         self._transitive_merge()
+        self._create_case_ids()
         return PreprocessedTraceLog(data=self.data)
 
 

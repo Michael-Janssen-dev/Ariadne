@@ -1,3 +1,4 @@
+import csv
 import os
 import sys
 from pathlib import Path
@@ -16,7 +17,7 @@ def cli():
 def _list_plugins_callback(ls, label):
     def callback(ctx, param, value):
         if value or ctx.resilient_parsing:
-            return
+            return value
         click.echo("Error: Missing option '--algorithm' / '-a'", err=True)
         click.echo(f"Available {label} algorithms:", err=True)
         for name, *_ in ls:
@@ -40,7 +41,7 @@ def algorithm(name: str, list_fn):
 
 
 @cli.command()
-@algorithm("mining", list_miners)
+@algorithm("miner", list_miners)
 @click.option(
     "-f",
     "--file",
@@ -92,7 +93,7 @@ def mine(file, output_dir, algorithm):
     required=True,
 )
 @click.pass_context
-def check_conformance(ctx, file, model_dir, checker):
+def check_conformance(ctx, file, model_dir, algorithm):
     """Check conformance of models against trace data"""
     import pandas as pd
 
@@ -101,8 +102,31 @@ def check_conformance(ctx, file, model_dir, checker):
 
     df = pd.read_csv(file)
     model_storage = ModelStorage(Path(model_dir))
-    results = check_conformance(df, checker, model_storage=model_storage)
-    click.echo(f"Conformance results: {results}", err=True)
+    results = check_conformance(df, algorithm, model_storage=model_storage)
+
+    with open("results.csv", "w") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(
+            [
+                "service_name",
+                "operation_name",
+                "fitness",
+                "precision",
+                "simplicity",
+                "generalization",
+            ]
+        )
+        for name, r in results.items():
+            writer.writerow(
+                [
+                    name[0],
+                    name[1],
+                    r.fitness,
+                    r.precision,
+                    r.simplicity,
+                    r.generalization,
+                ]
+            )
 
 
 @cli.group()

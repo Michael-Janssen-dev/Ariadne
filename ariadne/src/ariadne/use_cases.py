@@ -1,9 +1,9 @@
-import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 import pandas as pd
 from tqdm import tqdm
 
+from ariadne.domain.models.conformance import ConformanceResult
 from ariadne.domain.models.traces import TraceLogFactory
 from ariadne.storage import ModelStorage
 
@@ -34,7 +34,12 @@ def process_trace_data(df: pd.DataFrame, miner_name: str, *, storage: ModelStora
     )
 
     with ProcessPoolExecutor() as pool:
-        for activity_name, model in pool.map(_mine_one, tasks, chunksize=4):
+        futures = [pool.submit(_mine_one, task) for task in tasks]
+        for future in tqdm(
+            as_completed(futures),
+            total=len(futures),
+        ):
+            activity_name, model = future.result()
             service_name, name = activity_name
             storage.save_model(service_name, name, model, miner_name)
 
@@ -70,11 +75,10 @@ def check_conformance(
     algorithm_name: str,
     *,
     model_storage: ModelStorage,
-):
+) -> dict[str, ConformanceResult]:
     traces = TraceLogFactory.from_dataframe(log)
     preprocessed = traces.preprocess()
 
-    # Skip groups with no corresponding model up front
     tasks = (
         (
             algorithm_name,
@@ -86,14 +90,15 @@ def check_conformance(
     )
 
     results = {}
-    total = preprocessed.data["parent_activity_name"].nunique()
-    t = tqdm(total=int(total))
     with ProcessPoolExecutor() as pool:
-        for activity_name, result in pool.map(_check_one, tasks, chunksize=4):
-            if result is not None:
-                results[activity_name] = result
-            t.update(1)
-    t.close()
+        futures = [pool.submit(_check_one, task) for task in tasks]
+
+        for future in tqdm(
+            as_completed(futures),
+            total=len(futures),
+        ):
+            activity_name, result = future.result()
+            results[activity_name] = result
     return results
 
 
