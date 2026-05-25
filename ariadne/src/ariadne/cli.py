@@ -42,12 +42,9 @@ def algorithm(name: str, list_fn):
 
 @cli.command()
 @algorithm("miner", list_miners)
-@click.option(
-    "-f",
-    "--file",
-    help="Path to the trace data file (CSV format). If not provided, reads from stdin.",
+@click.argument(
+    "file",
     type=click.File("rt"),
-    default=sys.stdin,
 )
 @click.option(
     "--output-dir",
@@ -78,22 +75,16 @@ def mine(file, output_dir, algorithm):
 
 @cli.command("check")
 @algorithm("checker", list_conformance_checkers)
-@click.option(
-    "-f",
-    "--file",
-    help="Path to the trace data file (CSV format). If not provided, reads from stdin.",
+@click.argument(
+    "trace_file",
     type=click.File("rt"),
-    default=sys.stdin,
 )
-@click.option(
-    "--model-dir",
-    "-m",
-    help="Path to the directory containing stored models.",
+@click.argument(
+    "model_dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    required=True,
 )
 @click.pass_context
-def check_conformance(ctx, file, model_dir, algorithm):
+def check_conformance(ctx, trace_file, model_dir, algorithm):
     """Check conformance of models against trace data"""
     import pandas as pd
 
@@ -136,10 +127,8 @@ def convert():
 
 
 @convert.command()
-@click.option(
-    "-f",
-    "--file",
-    help="Path to the trace data file (CSV format). If not provided, reads from stdin.",
+@click.argument(
+    "file",
     type=click.File("rt"),
     default=sys.stdin,
 )
@@ -177,12 +166,9 @@ convert.add_command(from_elastic)
 
 
 @cli.command()
-@click.option(
-    "--model-dir",
-    "-m",
-    help="Path to the directory containing stored models.",
+@click.argument(
+    "model_dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    required=True,
 )
 @click.option(
     "--output-path",
