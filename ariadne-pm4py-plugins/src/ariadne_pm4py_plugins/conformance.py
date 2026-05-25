@@ -41,7 +41,6 @@ def _expand_lifecycle_activities(net: PetriNet) -> PetriNet:
 
 class PM4PYConformanceChecker(ConformanceChecker):
     name = "pm4py"
-    display_name = "PM4PY Conformance Checker"
     description = "Conformance checking using PM4PY"
     license = "AGPL-3.0"
 

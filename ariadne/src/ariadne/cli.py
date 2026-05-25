@@ -20,8 +20,8 @@ def _list_plugins_callback(ls, label):
             return value
         click.echo("Error: Missing option '--algorithm' / '-a'", err=True)
         click.echo(f"Available {label} algorithms:", err=True)
-        for name, *_ in ls:
-            click.echo(f"- {name}", err=True)
+        for name, display_name, license in ls:
+            click.echo(f"- {name}({license}): {display_name}", err=True)
         ctx.exit()
 
     return callback
@@ -129,7 +129,7 @@ def check_conformance(ctx, file, model_dir, algorithm):
             )
 
 
-@cli.group()
+@cli.group("import")
 def convert():
     """Convert to OTEL CSV format from other formats"""
     pass
@@ -191,14 +191,8 @@ convert.add_command(from_elastic)
     type=click.File("wt"),
     default=sys.stdout,
 )
-@click.option(
-    "--open",
-    is_flag=True,
-    help="Open the generated HTML file in the default web browser after creation.",
-)
-def visualize(model_dir, output_path, open):
-    """Visualize process models and traces"""
-    import webbrowser
+def inspect(model_dir, output_path):
+    """Inspect process models"""
     from pathlib import Path
     from tempfile import NamedTemporaryFile
 
@@ -213,16 +207,21 @@ def visualize(model_dir, output_path, open):
         output_path = NamedTemporaryFile(delete=False, suffix=".html", mode="w")
     output_path.write(html_content)
     click.echo(
-        f"Visualization HTML saved to {output_path if output_path != sys.stdout else 'stdout'}",
+        f"HTML saved to {output_path if output_path != sys.stdout else 'stdout'}",
         err=True,
     )
-    if open:
-        webbrowser.open_new_tab(f"file://{Path(output_path.name).resolve()}")
 
 
 @cli.command("collect")
-def collect_traces():
-    collect("60s")
+@click.option(
+    "--duration",
+    help="Specify how long traces will be collected",
+    default="60s",
+    type=str,
+)
+def collect_traces(duration):
+    """Collect traces from an OpenTelemetry Collector"""
+    collect(duration)
 
 
 if __name__ == "__main__":

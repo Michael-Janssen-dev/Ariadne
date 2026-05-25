@@ -9,7 +9,6 @@ class Plugin(ABC):
     """Base class for all plugins."""
 
     name: str
-    display_name: str
     license: str
     description: str
 

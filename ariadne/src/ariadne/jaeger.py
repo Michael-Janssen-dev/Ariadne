@@ -45,7 +45,7 @@ def extract_rows(path: Path) -> list[dict]:
 
 def process_traces(directory: Path):
     files = [f for f in sorted(directory.iterdir())]
-    with open("spans.csv", "w") as f, ProcessPoolExecutor() as pool:
+    with open("opentelemetry-demo.csv", "w") as f, ProcessPoolExecutor() as pool:
         writer = csv.DictWriter(f, REQUIRED_COLUMNS)
         writer.writeheader()
         for rows in tqdm.tqdm(
@@ -55,4 +55,4 @@ def process_traces(directory: Path):
 
 
 if __name__ == "__main__":
-    process_traces(Path("data/bottom-up-trace"))
+    process_traces(Path("frontend"))
