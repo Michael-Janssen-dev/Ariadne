@@ -90,5 +90,5 @@ class PM4PyMiningAlgorithm(MiningAlgorithm):
         pnml_tree: ET.ElementTree = export_petri_tree(petri_net, im, fm)
         pnml = ET.tostring(pnml_tree.getroot(), encoding="utf-8").decode("utf-8")  # type: ignore
         bpmn = pm4py.convert_to_bpmn(petri_net, im, fm)  # type: ignore
-        dot = bpmn_visualizer.apply(bpmn, im, fm).source
+        dot = bpmn_visualizer.apply(bpmn).source
         return EndpointModel(pnml_content=pnml, dot_content=dot)
