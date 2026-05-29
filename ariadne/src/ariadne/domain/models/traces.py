@@ -123,12 +123,26 @@ class PreprocessedTraceLog(TraceLog):
         """
         Groups spans by their parent activity, yielding tuples of (service_name, span_name) and corresponding child spans.
         """
+        activities = set()
         for activity_name, group in self.data.groupby("parent_activity_name"):
             service_name, span_name = str(activity_name).split("$")
+            activities.add(activity_name)
             yield (
                 (service_name, span_name),
                 EndpointChildSpans(
                     data=group,
+                    total_traces=self.counts[activity_name],
+                    service_name=service_name,
+                    endpoint_name=span_name,
+                ),
+            )
+        empty_activities = set(self.data["activity_name"].unique()) - activities
+        for activity_name in empty_activities:
+            service_name, span_name = str(activity_name).split("$")
+            yield (
+                (service_name, span_name),
+                EndpointChildSpans(
+                    data=pd.DataFrame(columns=self.data.columns),
                     total_traces=self.counts[activity_name],
                     service_name=service_name,
                     endpoint_name=span_name,
