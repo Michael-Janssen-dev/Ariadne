@@ -49,7 +49,7 @@ def algorithm(name: str, list_fn):
 @click.option(
     "--output-dir",
     "-o",
-    help="Path to the output directory. If not provided, writes to stdout.",
+    help="Path to the output directory.",
     type=click.Path(writable=True, file_okay=False, dir_okay=True),
     required=True,
 )
@@ -76,48 +76,54 @@ def mine(file, output_dir, algorithm):
 @cli.command("check")
 @algorithm("checker", list_conformance_checkers)
 @click.argument(
-    "trace_file",
+    "traces",
     type=click.File("rt"),
 )
 @click.argument(
     "model_dir",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
 )
+@click.option(
+    "--output",
+    "-o",
+    help="Path to the output file. If not provided, writes to stdout.",
+    type=click.File("wt"),
+    default=sys.stdout,
+)
 @click.pass_context
-def check_conformance(ctx, trace_file, model_dir, algorithm):
+def check_conformance(ctx, traces, model_dir, algorithm, output):
     """Check conformance of models against trace data"""
     import pandas as pd
 
     from ariadne.storage import ModelStorage
     from ariadne.use_cases import check_conformance
 
-    df = pd.read_csv(file)
+    df = pd.read_csv(traces)
     model_storage = ModelStorage(Path(model_dir))
     results = check_conformance(df, algorithm, model_storage=model_storage)
 
-    with open("results.csv", "w") as csvfile:
-        writer = csv.writer(csvfile)
+    writer = csv.writer(output)
+    writer.writerow(
+        [
+            "service_name",
+            "operation_name",
+            "fitness",
+            "precision",
+            "simplicity",
+            "generalization",
+        ]
+    )
+    for name, r in results.items():
         writer.writerow(
             [
-                "service_name",
-                "operation_name",
-                "fitness",
-                "precision",
-                "simplicity",
-                "generalization",
+                name[0],
+                name[1],
+                r.fitness,
+                r.precision,
+                r.simplicity,
+                r.generalization,
             ]
         )
-        for name, r in results.items():
-            writer.writerow(
-                [
-                    name[0],
-                    name[1],
-                    r.fitness,
-                    r.precision,
-                    r.simplicity,
-                    r.generalization,
-                ]
-            )
 
 
 @cli.group("import")
