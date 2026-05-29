@@ -277,7 +277,7 @@
 </body>
 
 <script type="module">
-    import { instance } from 'https://cdn.jsdelivr.net/npm/@viz-js/viz@3.19.0/+esm';
+    import { instance } from 'https://cdn.jsdelivr.net/npm/@viz-js/viz@3.27.0/+esm';
 
     const DATA = {{ models | tojson }};
     const services = Object.keys(DATA).sort();
@@ -291,6 +291,7 @@
     let allServiceButtons = [];
     let allEndpointButtons = [];
     let navigationHistory = [];
+    let updating = false;
 
     function showEmpty(message) {
         const graphContainer = document.getElementById('graph');
@@ -400,7 +401,9 @@
         setTimeout(() => {
             const endpointButtons = allEndpointButtons.filter(btn => btn.textContent === endpointName);
             if (endpointButtons.length > 0) {
+                updating = true;
                 endpointButtons[0].click();
+                updating = false;
             }
         }, 50);
     }
@@ -477,6 +480,10 @@
                 button.classList.add('active');
                 activeEndpointButton = button;
 
+                if (!updating) {
+                    navigationHistory = [];
+                }
+
                 const dotContent = DATA[serviceName][endpointName]["dot"];
                 renderGraph(dotContent);
                 updateBreadcrumb(serviceName, endpointName);
@@ -515,7 +522,7 @@
             link.style.textDecoration = 'underline';
             link.onclick = () => {
                 // Remove items after this one in history
-                navigationHistory = navigationHistory.slice(0, index + 1);
+                navigationHistory = navigationHistory.slice(0, index);
                 switchToEndpoint(item.service, item.endpoint, false);
             };
             breadcrumb.appendChild(link);
